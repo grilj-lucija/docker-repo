@@ -1,1 +1,86 @@
+# skripta za testiranje kode
 name: 29890_test
+on: 
+  # sprozi se ob pushu na main vejo
+  push:
+    branches: [ main ]
+  # omogocimo rocni zagon
+  workflow_dispatch: 
+
+jobs:
+  # job 1: preverimo ali obstajajo testne datoteke in standardno napako preusmerimo v napaka.txt
+  preveri_teste:
+    name: Preveri obstoj testov 
+    runs-on: self-hosted
+
+    steps:
+    #prenesemo kodo iz repozitorija
+      - name: Checkout repozitorija 
+        uses: actions/checkout@v4
+    # preverimo ali v mapi tests/ obstajajo test_*.py datoteke
+    # 2> preusmerimo standardno napako v napaka.txt
+      - name: Preveri ali testne datoteke obstajajo
+        run: |
+          if find tests/ -name "test_*.py" 2>napaka.txt | grep -q .; then
+            echo "Testne datoteke obstajajo"
+            > napaka.txt
+          else 
+            echo "NAPAKA: Testne datoteke ne obstajajo" > napaka.txt
+          fi
+
+    # nalozimo napaka.txt kot artafakt
+      - name: Naloži napaka.txt kot artafakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: preverjanje_testov
+          path: napaka.txt
+
+  # job 2: pripravimo okolje in pozenemo teste
+  pozeni_teste: 
+    name: Poženi teste (Python ${{ matrix.python-version }})
+    # ne zacne se dokler se ne konca job 1
+    needs: preveri_teste
+    runs-on: self-hosted
+
+  # MATRICA - isti testi se pozenejo na treh verzijah Python
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+
+    steps:
+      # prenesemo kodo 
+      - name: Checkout repozitorija
+        uses: actions/checkout@v4
+
+      # prenesemo artefakt napaka.txt iz joba 1
+      - name: Prenesi napaka.txt iz prejšnjega joba 
+        uses: actions/download-artifact@v4
+        with:
+          name: preverjanje_testov
+      # preverimo ali je napaka.txt prazna, ce ni prekinemo z exit 1
+      - name: Preveri vsebino napaka.txt
+        run: | 
+          if [ -s napaka.txt ]; then
+            echo "Napaka v prejsnjem jobu:"
+            cat napaka.txt
+            exit 1
+          else
+            echo "Ni napak, nadaljujemo"
+          fi
+    
+      # nastavimo Python verzijo iz matrike
+      - name: Nastavi Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # namestimo pytest
+      - name: Namesti odvisnosti
+        run: | 
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt 
+
+      # pozenemo teste
+      - name: Zaženi teste
+        run: pytest tests/ -v
+      
