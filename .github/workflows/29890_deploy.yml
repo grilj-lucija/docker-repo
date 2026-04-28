@@ -1,0 +1,50 @@
+# skripta za deploy na docker, izvede se samo ko se test uspesno konca 
+# zgradi Docker sliko in jo potisne na DockerHub
+
+name: 29890_deploy
+
+on: 
+# sporzi se ko se testni workflow uspesno zakljuci 
+  workflow_run:
+    workflows: ["29890_test"]
+    types: 
+      - completed
+  # rocni zagon
+  workflow_dispatch: 
+
+# spremenljivke iz github secrets 
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  REPONAME: ${{ secrets.REPO_NAME }}
+
+jobs:
+  deploy:
+    name: Zgradi in objavi Docker sliko
+    runs-on: self-hosted
+    # pozene samo ce so testi uspesni
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+    # prenesemo kodo
+      - name: Checkout repozitorija
+        uses: actions/checkout@v4
+      #shranimo trenutni datum kot tag
+      - name: Shrani datum za tag
+        id: datum
+        run: |
+          echo "date=$(date +'%Y-%m-%d--%H-%M-%S')" >> "$GITHUB_ENV"
+      # prijavimo se na docker 
+      - name: Prijava v Docker Hub
+        run: |
+          docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+
+      # zgradimo docker sliko in ji damo tag z datumom
+      - name: Zgradi Docker sliko
+        run: |
+          docker build . --file Dockerfile --tag $DOCKER_USERNAME/$REPONAME:$date
+
+      # potisnemo sliko na Docker 
+      - name: Potisni sliko na Docker Hub
+        run: |
+          docker push $DOCKER_USERNAME/$REPONAME:$date
