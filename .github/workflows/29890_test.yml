@@ -72,7 +72,7 @@ jobs:
       - name: Namesti odvisnosti
         run: | 
           python3 -m pip install --upgrade pip --break-system-packages
-          python3 -m pip install -r requirements.txt --brak-system-packages
+          python3 -m pip install -r requirements.txt --break-system-packages
 
       # pozenemo teste
       - name: Zaženi teste
