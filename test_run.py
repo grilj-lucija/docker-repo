@@ -1,7 +1,7 @@
 import subprocess
 
 def test_izpis():
-    #pozenemo run.py in preverimo, da se izpise "Hello, Lucija!"
+    # pozenemo run.py in preverimo, da se izpise "Hello, Lucija!"
     rezultat = subprocess.run (
         ["python", "run.py"], 
         capture_output =True, 
